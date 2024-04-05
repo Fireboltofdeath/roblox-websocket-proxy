@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse};
 use serde_json::json;
+use tokio::sync::mpsc;
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -7,6 +8,7 @@ pub enum ApiError {
     ServerError,
     SocketNotFound,
     SocketNotAlive,
+    SocketChannelSendError,
     ConnectionError(tokio_tungstenite::tungstenite::Error),
     Raw(u16, String),
 }
@@ -14,7 +16,9 @@ pub enum ApiError {
 impl ApiError {
     fn status_code(&self) -> StatusCode {
         match self {
-            ApiError::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::ServerError | ApiError::SocketChannelSendError => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
             ApiError::SocketNotFound => StatusCode::NOT_FOUND,
             ApiError::SocketNotAlive | ApiError::ConnectionError(_) => StatusCode::BAD_REQUEST,
             ApiError::Raw(status_code, _) => {
@@ -28,6 +32,7 @@ impl ApiError {
             ApiError::ServerError => "Internal Server Error".to_string(),
             ApiError::SocketNotFound => "Socket not found".to_string(),
             ApiError::SocketNotAlive => "Socket not alive".to_string(),
+            ApiError::SocketChannelSendError => "Socket channel send failed".to_string(),
             ApiError::Raw(_, message) => message.clone(),
             ApiError::ConnectionError(_) => "WebSocket connection error".to_string(),
         }
@@ -37,6 +42,12 @@ impl ApiError {
 impl From<tokio_tungstenite::tungstenite::Error> for ApiError {
     fn from(value: tokio_tungstenite::tungstenite::Error) -> Self {
         Self::ConnectionError(value)
+    }
+}
+
+impl<T> From<mpsc::error::SendError<T>> for ApiError {
+    fn from(_value: mpsc::error::SendError<T>) -> Self {
+        Self::SocketChannelSendError
     }
 }
 

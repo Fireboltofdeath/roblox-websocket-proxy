@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     api_error::ApiError,
     api_response::ApiResponse,
-    app_state::{AppState, Socket},
+    app_state::{AppState, Socket, SocketPacket},
     config::{CLOSED_CONNECTION_EXPIRY, CONNECTION_POLL_TIMEOUT, CONNECTION_TIMEOUT},
 };
 
@@ -43,7 +43,7 @@ pub async fn connect_socket(
 }
 
 async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, ApiError> {
-    let (sender, mut receiver) = mpsc::channel::<String>(512);
+    let (sender, mut receiver) = mpsc::channel::<SocketPacket>(64);
     let (mut connection, _) = tokio_tungstenite::connect_async(url).await?;
     let notify = Arc::new(Notify::new());
     let socket = Arc::new(Socket::new(notify.clone(), sender));
@@ -58,9 +58,15 @@ async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, A
 
             loop {
                 select! {
-                    message = receiver.recv() => {
-                        if let Some(message) = message {
-                            connection.send(Message::Text(message)).await.ok();
+                    packet = receiver.recv() => {
+                        match packet {
+                            Some(SocketPacket::Close) => {
+                                connection.close(None).await.ok();
+                            }
+                            Some(SocketPacket::Message(message)) => {
+                                connection.send(Message::Text(message)).await.ok();
+                            },
+                            _ => {}
                         }
                     },
 

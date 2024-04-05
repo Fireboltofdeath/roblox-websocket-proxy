@@ -8,10 +8,13 @@ use std::{env, sync::Arc};
 
 use app_state::AppState;
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
-use endpoints::{connect_socket::connect_socket, get_socket::get_socket, send_socket::send_socket};
+use endpoints::{
+    close_socket::close_socket, connect_socket::connect_socket, get_socket::get_socket,
+    send_socket::send_socket,
+};
 
 #[tokio::main]
 async fn main() {
@@ -31,6 +34,7 @@ async fn main() {
         .route("/connect", post(connect_socket))
         .route("/:socket_id/get", get(get_socket))
         .route("/:socket_id/send", post(send_socket))
+        .route("/:socket_id/close", delete(close_socket))
         .with_state(app_state);
 
     println!("Starting listener on {ip}:{port}");

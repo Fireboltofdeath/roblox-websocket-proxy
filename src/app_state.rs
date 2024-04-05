@@ -12,18 +12,23 @@ pub struct AppState {
     pub sockets: Arc<Mutex<Vec<Arc<Socket>>>>,
 }
 
+pub enum SocketPacket {
+    Close,
+    Message(String),
+}
+
 pub struct Socket {
     pub id: Uuid,
     pub ready: AtomicBool,
     pub alive: AtomicBool,
     pub messages: Mutex<Vec<Message>>,
-    pub sender: Sender<String>,
+    pub sender: Sender<SocketPacket>,
     pub notify: Arc<Notify>,
     pub last_poll: Mutex<Instant>,
 }
 
 impl Socket {
-    pub fn new(notify: Arc<Notify>, sender: Sender<String>) -> Self {
+    pub fn new(notify: Arc<Notify>, sender: Sender<SocketPacket>) -> Self {
         Self {
             id: Uuid::new_v4(),
             ready: AtomicBool::new(false),

@@ -1,21 +1,11 @@
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use serde::Deserialize;
+use axum::extract::{Path, State};
 use uuid::Uuid;
 
 use crate::{api_error::ApiError, api_response::ApiResponse, app_state::SocketPacket, AppState};
 
-#[derive(Deserialize)]
-pub struct SocketSendBody {
-    data: String,
-}
-
-pub async fn send_socket(
+pub async fn close_socket(
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,
-    Json(body): Json<SocketSendBody>,
 ) -> Result<ApiResponse<()>, ApiError> {
     let socket = state
         .sockets
@@ -26,7 +16,7 @@ pub async fn send_socket(
         .cloned();
 
     if let Some(socket) = socket {
-        socket.sender.send(SocketPacket::Message(body.data)).await?;
+        socket.sender.send(SocketPacket::Close).await?;
 
         return Ok(ApiResponse(()));
     }
