@@ -1,4 +1,7 @@
-use std::{sync::atomic::Ordering, time::Duration};
+use std::{
+    sync::atomic::Ordering,
+    time::{Duration, Instant},
+};
 
 use axum::extract::{Path, Query, State};
 use serde::{Deserialize, Serialize};
@@ -7,6 +10,7 @@ use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
 use crate::{
+    api_error::ApiError,
     api_response::ApiResponse,
     config::{KEEP_ALIVE, MAX_BATCH_DURATION},
     AppState,
@@ -33,7 +37,7 @@ pub async fn get_socket(
     Query(query): Query<SocketQuery>,
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,
-) -> ApiResponse<Vec<SocketMessage>> {
+) -> Result<ApiResponse<Vec<SocketMessage>>, ApiError> {
     let socket = state
         .sockets
         .lock()
@@ -43,17 +47,25 @@ pub async fn get_socket(
         .cloned();
 
     if let Some(socket) = socket {
+        let is_ready = socket.ready.load(Ordering::Acquire);
+
+        // The socket is already dead and there are no messages to emit.
+        if !is_ready && !socket.alive.load(Ordering::Acquire) {
+            return Err(ApiError::SocketNotAlive);
+        }
+
+        *socket.last_poll.lock().await = Instant::now();
+
         // The client requested long polling, so we'll wait for messages to be available before sending a response.
         if query.long {
             let notify = socket.notify.clone();
-            let is_ready = socket.ready.load(Ordering::Acquire);
 
             if !is_ready {
                 let result = timeout(KEEP_ALIVE, notify.notified()).await;
 
                 // We passed the keep alive time without receiving any messages, we can immediately return no messages.
                 if result.is_err() {
-                    return ApiResponse(Vec::new());
+                    return Ok(ApiResponse(Vec::new()));
                 }
             }
 
@@ -64,20 +76,26 @@ pub async fn get_socket(
 
         socket.ready.store(false, Ordering::Release);
 
-        let messages = socket.messages.lock().await.drain(..).collect::<Vec<_>>();
-        return ApiResponse(
-            messages
-                .into_iter()
-                .filter_map(|message| match message {
-                    Message::Text(content) => Some(SocketMessage::Content { content }),
-                    Message::Close(close_frame) => Some(SocketMessage::Close {
-                        reason: close_frame.map(|v| v.reason.into_owned()),
-                    }),
-                    _ => None,
-                })
-                .collect(),
-        );
+        let messages = socket
+            .messages
+            .lock()
+            .await
+            .drain(..)
+            .filter_map(convert_message)
+            .collect::<Vec<SocketMessage>>();
+
+        return Ok(ApiResponse(messages));
     }
 
-    ApiResponse(Vec::new())
+    Err(ApiError::SocketNotFound)
+}
+
+fn convert_message(message: Message) -> Option<SocketMessage> {
+    match message {
+        Message::Text(content) => Some(SocketMessage::Content { content }),
+        Message::Close(close_frame) => Some(SocketMessage::Close {
+            reason: close_frame.map(|v| v.reason.into_owned()),
+        }),
+        _ => None,
+    }
 }

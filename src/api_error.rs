@@ -5,6 +5,8 @@ use serde_json::json;
 #[allow(dead_code)]
 pub enum ApiError {
     ServerError,
+    SocketNotFound,
+    SocketNotAlive,
     ConnectionError(tokio_tungstenite::tungstenite::Error),
     Raw(u16, String),
 }
@@ -13,16 +15,19 @@ impl ApiError {
     fn status_code(&self) -> StatusCode {
         match self {
             ApiError::ServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            ApiError::SocketNotFound => StatusCode::NOT_FOUND,
+            ApiError::SocketNotAlive | ApiError::ConnectionError(_) => StatusCode::BAD_REQUEST,
             ApiError::Raw(status_code, _) => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            ApiError::ConnectionError(_) => StatusCode::BAD_REQUEST,
         }
     }
 
     fn message(&self) -> String {
         match self {
             ApiError::ServerError => "Internal Server Error".to_string(),
+            ApiError::SocketNotFound => "Socket not found".to_string(),
+            ApiError::SocketNotAlive => "Socket not alive".to_string(),
             ApiError::Raw(_, message) => message.clone(),
             ApiError::ConnectionError(_) => "WebSocket connection error".to_string(),
         }

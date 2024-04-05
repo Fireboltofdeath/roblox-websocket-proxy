@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::{Duration, Instant},
 };
 
 use axum::extract::{Query, State};
@@ -9,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use tokio::{
     select,
     sync::{mpsc, Mutex, Notify},
+    time,
 };
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
@@ -17,6 +21,7 @@ use crate::{
     api_error::ApiError,
     api_response::ApiResponse,
     app_state::{AppState, Socket},
+    config::{CLOSED_CONNECTION_EXPIRY, CONNECTION_POLL_TIMEOUT, CONNECTION_TIMEOUT},
 };
 
 #[derive(Deserialize)]
@@ -48,13 +53,20 @@ async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, A
         messages: Mutex::new(Vec::default()),
         notify: notify.clone(),
         ready: AtomicBool::new(false),
+        alive: AtomicBool::new(true),
         id: Uuid::new_v4(),
+        last_poll: Mutex::new(Instant::now()),
         sender,
     });
 
     tokio::spawn({
         let socket = socket.clone();
+        let app_state = app_state.clone();
         async move {
+            let mut last_ping = Instant::now();
+            let mut heartbeat = time::interval(Duration::from_secs(1));
+            heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+
             loop {
                 select! {
                     message = receiver.recv() => {
@@ -70,17 +82,30 @@ async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, A
                                 handle.push(message);
                                 socket.ready.store(true, Ordering::Release);
                                 notify.notify_waiters();
+                                last_ping = Instant::now();
                             }
-                            Some(Err(err)) => {
-                                println!("{err:?}");
-                            }
-                            None => {
-                                println!("END?");
+                            Some(Err(_)) | None => {
+                                break;
                             }
                         };
+                    },
+
+                    _ = heartbeat.tick() => {
+                        let last_poll = socket.last_poll.lock().await.elapsed();
+                        if last_poll > CONNECTION_POLL_TIMEOUT || last_ping.elapsed() > CONNECTION_TIMEOUT {
+                            connection.close(None).await.ok();
+                        }
                     }
                 };
             }
+
+            socket.alive.store(false, Ordering::Release);
+            notify.notify_waiters();
+
+            // The connection is dead, but we wait until it expires to remove the socket entry.
+            time::sleep(CLOSED_CONNECTION_EXPIRY).await;
+
+            app_state.sockets.lock().await.retain(|v| v.id != socket.id);
         }
     });
 
