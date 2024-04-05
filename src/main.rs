@@ -7,7 +7,10 @@ mod endpoints;
 use std::{env, sync::Arc};
 
 use app_state::AppState;
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use endpoints::{connect_socket::connect_socket, get_socket::get_socket, send_socket::send_socket};
 
 #[tokio::main]
@@ -25,9 +28,9 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(|| async { "Hello from roblox-websocket-proxy!" }))
-        .route("/connect", get(connect_socket))
+        .route("/connect", post(connect_socket))
         .route("/:socket_id/get", get(get_socket))
-        .route("/:socket_id/send", get(send_socket))
+        .route("/:socket_id/send", post(send_socket))
         .with_state(app_state);
 
     println!("Starting listener on {ip}:{port}");

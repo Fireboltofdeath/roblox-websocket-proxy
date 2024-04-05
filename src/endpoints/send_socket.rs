@@ -1,18 +1,21 @@
-use axum::extract::{Path, Query, State};
+use axum::{
+    extract::{Path, State},
+    Json,
+};
 use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{api_response::ApiResponse, AppState};
 
 #[derive(Deserialize)]
-pub struct SocketSendQuery {
+pub struct SocketSendBody {
     data: String,
 }
 
 pub async fn send_socket(
-    Query(query): Query<SocketSendQuery>,
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,
+    Json(body): Json<SocketSendBody>,
 ) -> ApiResponse<()> {
     let socket = state
         .sockets
@@ -23,7 +26,7 @@ pub async fn send_socket(
         .cloned();
 
     if let Some(socket) = socket {
-        socket.sender.send(query.data).await.ok();
+        socket.sender.send(body.data).await.ok();
     }
 
     ApiResponse(())

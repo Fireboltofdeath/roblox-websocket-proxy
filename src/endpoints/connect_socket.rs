@@ -3,7 +3,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use axum::extract::{Query, State};
+use axum::{
+    extract::{Query, State},
+    Json,
+};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
@@ -22,7 +25,7 @@ use crate::{
 };
 
 #[derive(Deserialize)]
-pub struct SocketConnectQuery {
+pub struct SocketConnectBody {
     url: String,
 }
 
@@ -32,8 +35,8 @@ pub struct ConnectSocketResponse {
 }
 
 pub async fn connect_socket(
-    Query(query): Query<SocketConnectQuery>,
     State(state): State<AppState>,
+    Json(query): Json<SocketConnectBody>,
 ) -> Result<ApiResponse<ConnectSocketResponse>, ApiError> {
     let socket = create_socket(&state, &query.url).await?;
 
