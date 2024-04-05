@@ -66,12 +66,10 @@ async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, A
                     message = connection.next() => {
                         match message {
                             Some(Ok(message)) => {
-                                if let Message::Text(text) = message {
-                                    let mut handle = socket.messages.lock().await;
-                                    handle.push(text);
-                                    socket.ready.store(true, Ordering::Release);
-                                    notify.notify_waiters();
-                                }
+                                let mut handle = socket.messages.lock().await;
+                                handle.push(message);
+                                socket.ready.store(true, Ordering::Release);
+                                notify.notify_waiters();
                             }
                             Some(Err(err)) => {
                                 println!("{err:?}");

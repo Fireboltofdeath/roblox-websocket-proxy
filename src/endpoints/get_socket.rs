@@ -1,8 +1,9 @@
 use std::{sync::atomic::Ordering, time::Duration};
 
 use axum::extract::{Path, Query, State};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, timeout};
+use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
 use crate::{
@@ -20,11 +21,19 @@ pub struct SocketQuery {
     batch_ms: Option<u32>,
 }
 
+#[derive(Serialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "camelCase")]
+pub enum SocketMessage {
+    Content { content: String },
+    Close { reason: Option<String> },
+}
+
 pub async fn get_socket(
     Query(query): Query<SocketQuery>,
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,
-) -> ApiResponse<Vec<String>> {
+) -> ApiResponse<Vec<SocketMessage>> {
     let socket = state
         .sockets
         .lock()
@@ -56,7 +65,18 @@ pub async fn get_socket(
         socket.ready.store(false, Ordering::Release);
 
         let messages = socket.messages.lock().await.drain(..).collect::<Vec<_>>();
-        return ApiResponse(messages);
+        return ApiResponse(
+            messages
+                .into_iter()
+                .filter_map(|message| match message {
+                    Message::Text(content) => Some(SocketMessage::Content { content }),
+                    Message::Close(close_frame) => Some(SocketMessage::Close {
+                        reason: close_frame.map(|v| v.reason.into_owned()),
+                    }),
+                    _ => None,
+                })
+                .collect(),
+        );
     }
 
     ApiResponse(Vec::new())
