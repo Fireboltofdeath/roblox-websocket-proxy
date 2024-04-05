@@ -3,10 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
