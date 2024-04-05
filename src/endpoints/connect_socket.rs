@@ -1,8 +1,5 @@
 use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::{atomic::Ordering, Arc},
     time::{Duration, Instant},
 };
 
@@ -11,7 +8,7 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::{
     select,
-    sync::{mpsc, Mutex, Notify},
+    sync::{mpsc, Notify},
     time,
 };
 use tokio_tungstenite::tungstenite::Message;
@@ -49,15 +46,7 @@ async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, A
     let (sender, mut receiver) = mpsc::channel::<String>(512);
     let (mut connection, _) = tokio_tungstenite::connect_async(url).await?;
     let notify = Arc::new(Notify::new());
-    let socket = Arc::new(Socket {
-        messages: Mutex::new(Vec::default()),
-        notify: notify.clone(),
-        ready: AtomicBool::new(false),
-        alive: AtomicBool::new(true),
-        id: Uuid::new_v4(),
-        last_poll: Mutex::new(Instant::now()),
-        sender,
-    });
+    let socket = Arc::new(Socket::new(notify.clone(), sender));
 
     tokio::spawn({
         let socket = socket.clone();

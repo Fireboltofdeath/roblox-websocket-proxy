@@ -21,3 +21,17 @@ pub struct Socket {
     pub notify: Arc<Notify>,
     pub last_poll: Mutex<Instant>,
 }
+
+impl Socket {
+    pub fn new(notify: Arc<Notify>, sender: Sender<String>) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            ready: AtomicBool::new(false),
+            alive: AtomicBool::new(true),
+            messages: Mutex::new(Vec::default()),
+            last_poll: Mutex::new(Instant::now()),
+            notify,
+            sender,
+        }
+    }
+}
