@@ -12,6 +12,17 @@ pub struct AppState {
     pub sockets: Arc<Mutex<Vec<Arc<Socket>>>>,
 }
 
+impl AppState {
+    pub async fn find_socket(&self, socket_id: Uuid) -> Option<Arc<Socket>> {
+        self.sockets
+            .lock()
+            .await
+            .iter()
+            .find(|v| v.id == socket_id)
+            .cloned()
+    }
+}
+
 pub enum SocketPacket {
     Close,
     Message(String),
