@@ -106,7 +106,7 @@ function WebSocket:connect()
 
 	local success, connection = self:_request(CONNECT_URL, "POST", { url = self.url })
 	if not success then
-		return false
+		return false, connection
 	end
 
 	self.connected = true
