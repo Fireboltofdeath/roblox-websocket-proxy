@@ -3,6 +3,7 @@ local HttpService = game:GetService("HttpService")
 type WebSocketOptions = {
 	url: string,
 	batchMs: number?,
+	endpoint: string?,
 }
 
 local CONNECT_URL = "/connect"
@@ -23,6 +24,7 @@ function WebSocket.new(options: WebSocketOptions)
 	self.connected = false
 	self.url = options.url
 	self.batchMs = options.batchMs
+	self.endpoint = options.endpoint
 	self.onmessageCallbacks = {}
 	self.oncloseCallbacks = {}
 
@@ -30,8 +32,9 @@ function WebSocket.new(options: WebSocketOptions)
 end
 
 function WebSocket:_request(url, method, body)
+	local endpoint = self.endpoint or WebSocket.ENDPOINT
 	local response = HttpService:RequestAsync({
-		Url = WebSocket.ENDPOINT .. url,
+		Url = endpoint .. url,
 		Method = method,
 		Body = body and HttpService:JSONEncode(body) or nil,
 		Headers = {
