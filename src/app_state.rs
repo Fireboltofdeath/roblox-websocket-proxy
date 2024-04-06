@@ -10,6 +10,7 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub struct AppState {
     pub sockets: Arc<Mutex<Vec<Arc<Socket>>>>,
+    pub authentication: Option<Arc<String>>,
 }
 
 impl AppState {

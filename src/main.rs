@@ -1,6 +1,7 @@
 mod api_error;
 mod api_response;
 mod app_state;
+mod authentication;
 mod config;
 mod endpoints;
 
@@ -20,6 +21,7 @@ use endpoints::{
 async fn main() {
     let app_state = AppState {
         sockets: Arc::default(),
+        authentication: env::var("AUTH").ok().map(Arc::new),
     };
 
     let ip = env::var("IP").unwrap_or("0.0.0.0".to_string());

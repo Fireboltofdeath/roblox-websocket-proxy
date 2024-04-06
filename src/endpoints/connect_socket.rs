@@ -18,6 +18,7 @@ use crate::{
     api_error::ApiError,
     api_response::ApiResponse,
     app_state::{AppState, Socket, SocketPacket},
+    authentication::Authentication,
     config::{CLOSED_CONNECTION_EXPIRY, CONNECTION_POLL_TIMEOUT, CONNECTION_TIMEOUT},
 };
 
@@ -32,6 +33,7 @@ pub struct ConnectSocketResponse {
 }
 
 pub async fn connect_socket(
+    Authentication: Authentication,
     State(state): State<AppState>,
     Json(query): Json<SocketConnectBody>,
 ) -> Result<ApiResponse<ConnectSocketResponse>, ApiError> {

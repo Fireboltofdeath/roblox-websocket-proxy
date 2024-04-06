@@ -4,6 +4,7 @@ type WebSocketOptions = {
 	url: string,
 	batchMs: number?,
 	endpoint: string?,
+	auth: string?,
 }
 
 local CONNECT_URL = "/connect"
@@ -17,6 +18,7 @@ local WebSocket = {}
 WebSocket.__index = WebSocket
 
 WebSocket.ENDPOINT = "http://localhost:3000"
+WebSocket.AUTH = nil :: string?
 
 function WebSocket.new(options: WebSocketOptions)
 	local self = setmetatable({}, WebSocket)
@@ -25,6 +27,7 @@ function WebSocket.new(options: WebSocketOptions)
 	self.url = options.url
 	self.batchMs = options.batchMs
 	self.endpoint = options.endpoint
+	self.auth = options.auth
 	self.onmessageCallbacks = {}
 	self.oncloseCallbacks = {}
 
@@ -33,12 +36,14 @@ end
 
 function WebSocket:_request(url, method, body)
 	local endpoint = self.endpoint or WebSocket.ENDPOINT
+	local auth = self.auth or WebSocket.AUTH
 	local response = HttpService:RequestAsync({
 		Url = endpoint .. url,
 		Method = method,
 		Body = body and HttpService:JSONEncode(body) or nil,
 		Headers = {
 			["Content-Type"] = "application/json",
+			["Authorization"] = auth,
 		},
 	})
 

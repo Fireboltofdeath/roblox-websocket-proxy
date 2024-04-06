@@ -5,7 +5,10 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{api_error::ApiError, api_response::ApiResponse, app_state::SocketPacket, AppState};
+use crate::{
+    api_error::ApiError, api_response::ApiResponse, app_state::SocketPacket,
+    authentication::Authentication, AppState,
+};
 
 #[derive(Deserialize)]
 pub struct SocketSendBody {
@@ -13,6 +16,7 @@ pub struct SocketSendBody {
 }
 
 pub async fn send_socket(
+    Authentication: Authentication,
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,
     Json(body): Json<SocketSendBody>,

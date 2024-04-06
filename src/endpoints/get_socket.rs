@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::{
     api_error::ApiError,
     api_response::ApiResponse,
+    authentication::Authentication,
     config::{KEEP_ALIVE, MAX_BATCH_DURATION},
     AppState,
 };
@@ -34,6 +35,7 @@ pub enum SocketMessage {
 }
 
 pub async fn get_socket(
+    Authentication: Authentication,
     Query(query): Query<SocketQuery>,
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,

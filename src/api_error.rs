@@ -9,6 +9,8 @@ pub enum ApiError {
     SocketNotFound,
     SocketNotAlive,
     SocketChannelSendError,
+    BadAuthentication,
+    NoAuthentication,
     ConnectionError(tokio_tungstenite::tungstenite::Error),
     Raw(u16, String),
 }
@@ -21,6 +23,7 @@ impl ApiError {
             }
             ApiError::SocketNotFound => StatusCode::NOT_FOUND,
             ApiError::SocketNotAlive | ApiError::ConnectionError(_) => StatusCode::BAD_REQUEST,
+            ApiError::BadAuthentication | ApiError::NoAuthentication => StatusCode::UNAUTHORIZED,
             ApiError::Raw(status_code, _) => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -33,6 +36,8 @@ impl ApiError {
             ApiError::SocketNotFound => "Socket not found".to_string(),
             ApiError::SocketNotAlive => "Socket not alive".to_string(),
             ApiError::SocketChannelSendError => "Socket channel send failed".to_string(),
+            ApiError::BadAuthentication => "Authentication provided is not sufficient".to_string(),
+            ApiError::NoAuthentication => "No authentication was provided".to_string(),
             ApiError::Raw(_, message) => message.clone(),
             ApiError::ConnectionError(_) => "WebSocket connection error".to_string(),
         }

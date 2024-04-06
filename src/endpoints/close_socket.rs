@@ -1,9 +1,13 @@
 use axum::extract::{Path, State};
 use uuid::Uuid;
 
-use crate::{api_error::ApiError, api_response::ApiResponse, app_state::SocketPacket, AppState};
+use crate::{
+    api_error::ApiError, api_response::ApiResponse, app_state::SocketPacket,
+    authentication::Authentication, AppState,
+};
 
 pub async fn close_socket(
+    Authentication: Authentication,
     State(state): State<AppState>,
     Path(socket_id): Path<Uuid>,
 ) -> Result<ApiResponse<()>, ApiError> {
