@@ -75,7 +75,7 @@ function WebSocket:_startPolling()
 			if not success then
 				-- The socket is dead and/or got cleaned up.
 				if response == "Socket not alive" or response == "Socket not found" then
-					self:_close()
+					self:_close(response)
 					break
 				end
 
