@@ -4,7 +4,7 @@ use std::{
 };
 
 use tokio::sync::{mpsc::Sender, Mutex, Notify};
-use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::{protocol::frame::coding::CloseCode, Message};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -25,7 +25,7 @@ impl AppState {
 }
 
 pub enum SocketPacket {
-    Close,
+    Close(Option<CloseCode>, Option<String>),
     Message(String),
 }
 

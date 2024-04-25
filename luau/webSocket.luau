@@ -55,11 +55,11 @@ function WebSocket:_request(url, method, body)
 	end
 end
 
-function WebSocket:_close(reason)
+function WebSocket:_close(code, reason)
 	self.connected = false
 
 	for _, callback in self.oncloseCallbacks do
-		task.spawn(callback, reason)
+		task.spawn(callback, code, reason)
 	end
 end
 
@@ -69,7 +69,7 @@ function WebSocket:_incoming(message)
 			task.spawn(callback, message.content)
 		end
 	elseif message.type == "close" then
-		self:_close(message.reason)
+		self:_close(message.code, message.reason)
 	end
 end
 
@@ -83,7 +83,7 @@ function WebSocket:_startPolling()
 			if not success then
 				-- The socket is dead and/or got cleaned up.
 				if response == "Socket not alive" or response == "Socket not found" then
-					self:_close(response)
+					self:_close(1005, response)
 					break
 				end
 
@@ -131,14 +131,14 @@ function WebSocket:send(data)
 	return success
 end
 
-function WebSocket:close()
+function WebSocket:close(code, reason)
 	if not self.connected then
 		warn("Cannot close disconnected websocket")
 		return
 	end
 
 	local closeUrl = string.format(CLOSE_URL, self.socketId)
-	local success, message = self:_request(closeUrl, "DELETE")
+	local success, message = self:_request(closeUrl, "DELETE", { code = code, reason = reason })
 	if not success then
 		warn("Error closing socket:", message)
 	end

@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     sync::{atomic::Ordering, Arc},
     time::{Duration, Instant},
 };
@@ -11,7 +12,7 @@ use tokio::{
     sync::{mpsc, Notify},
     time,
 };
-use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::{protocol::CloseFrame, Message};
 use uuid::Uuid;
 
 use crate::{
@@ -62,12 +63,18 @@ async fn create_socket(app_state: &AppState, url: &str) -> Result<Arc<Socket>, A
                 select! {
                     packet = receiver.recv() => {
                         match packet {
-                            Some(SocketPacket::Close) => {
-                                connection.close(None).await.ok();
+                            Some(SocketPacket::Close(code, reason)) => {
+                                // A close code must be provided to contain a close reason.
+                                let close_frame = code.map(|code| {
+                                    let reason = Cow::Borrowed(reason.as_deref().unwrap_or_default());
+                                    CloseFrame { code, reason }
+                                });
+
+                                connection.close(close_frame).await.ok();
                             }
                             Some(SocketPacket::Message(message)) => {
                                 connection.send(Message::Text(message)).await.ok();
-                            },
+                            }
                             _ => {}
                         }
                     },
