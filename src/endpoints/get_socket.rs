@@ -31,7 +31,7 @@ pub struct SocketQuery {
 #[serde(rename_all = "camelCase")]
 pub enum SocketMessage {
     Content { content: String },
-    Close { reason: Option<String> },
+    Close { code: u16, reason: Option<String> },
 }
 
 pub async fn get_socket(
@@ -88,6 +88,7 @@ fn convert_message(message: Message) -> Option<SocketMessage> {
     match message {
         Message::Text(content) => Some(SocketMessage::Content { content }),
         Message::Close(close_frame) => Some(SocketMessage::Close {
+            code: close_frame.as_ref().map_or(1005, |v| v.code.into()),
             reason: close_frame.map(|v| v.reason.into_owned()),
         }),
         _ => None,
